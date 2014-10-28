@@ -1,0 +1,40 @@
+<html>
+<head>
+  <script type="text/javascript" src="/_ah/channel/jsapi"></script>
+</head>
+<body>
+  <button id="brb">Stop {{.token}}</button>
+  <script>
+  	key = '{{.key}}';
+  	id = '{{.id}}';
+    channel = new goog.appengine.Channel('{{.token}}');
+    socket = channel.open();
+    socket.onopen = function() {
+    	console.log('opened')
+    };
+    socket.onmessage = function(message) {
+    	console.log(message)
+    };
+    socket.onerror = function(err) {
+    	console.log(err.description)
+    };
+    socket.onclose = function() {
+    	console.log('closed')
+    };
+
+    function sendMessage(path) {
+    	path += '?key=' + key + '&id=' + id;
+    	xhr = new XMLHttpRequest();
+    	xhr.open('POST', path, true);
+    	xhr.send();
+    }
+    function brb() {
+    	socket.
+    }
+
+    document.getElementById("brb").addEventListener("click", brb, false)
+  </script>
+  <input id="BRB"></input> 
+</body>
+</html>
+
