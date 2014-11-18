@@ -31,15 +31,15 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	}
 
 	project := "g-hammerofdawn"
-  zone := "us-central1-b"
+	zone := "us-central1-b"
 	list, err := computeApi.Instances.List(project, zone).Do()
 	if err != nil {
-    http.Error(responseWriter, "Couldn't retrieve instances", 500)
-  }
+		http.Error(responseWriter, "Couldn't retrieve instances", 500)
+	}
 
-  for _, instance := range list.Items {
-    fmt.Fprintf(responseWriter, "%#v\n", *instance)
-  }
+	for _, instance := range list.Items {
+		fmt.Fprintf(responseWriter, "%#v\n", *instance)
+	}
 
 	var _ = computeApi
 	fmt.Fprintf(responseWriter, "Complete")
