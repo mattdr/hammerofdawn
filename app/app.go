@@ -33,8 +33,15 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	}
 
 	project := "g-hammerofdawn"
-	res, err := computeApi.Images.List(project).Do()
-	fmt.Fprintf(responseWriter, "%v %v\n", res, err)
+	zone := "us-central1-b"
+	list, err := computeApi.Instances.List(project, zone).Do()
+	if err != nil {
+		http.Error(responseWriter, "Couldn't retrieve instances", 500)
+	}
+
+	for _, instance := range list.Items {
+		fmt.Fprintf(responseWriter, "%#v\n", *instance)
+	}
 
 	var _ = computeApi
 	fmt.Fprintf(responseWriter, "Complete")
@@ -44,6 +51,8 @@ func init() {
 	http.HandleFunc("/", root)
 	http.HandleFunc("/brb", brb)
 	http.HandleFunc("/brbtrigger", brbTrigger)
+	// http.HandleFunc("/_ah/channel/connected", brbConnected)
+	// http.HandleFunc("/_ah/channel/disconnected", brbDisconnected)
 }
 
 var brbTemplate = template.Must(template.ParseFiles("brb.html"))
