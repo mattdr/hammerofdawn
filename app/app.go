@@ -3,12 +3,15 @@ package app
 import (
 	"appengine"
 	"appengine/channel"
+	"appengine/datastore"
 	"appengine/urlfetch"
-	"code.google.com/p/goauth2/oauth"
-	"code.google.com/p/google-api-go-client/compute/v1"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
+
+	"code.google.com/p/goauth2/oauth"
+	"code.google.com/p/google-api-go-client/compute/v1"
 )
 
 func root(responseWriter http.ResponseWriter, request *http.Request) {
@@ -30,6 +33,7 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	computeApi, err := compute.New(transport.Client())
 	if err != nil {
 		http.Error(responseWriter, "Couldn't activate Compute API", 500)
+		return
 	}
 
 	project := "g-hammerofdawn"
@@ -37,6 +41,7 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	list, err := computeApi.Instances.List(project, zone).Do()
 	if err != nil {
 		http.Error(responseWriter, "Couldn't retrieve instances", 500)
+		return
 	}
 
 	for _, instance := range list.Items {
@@ -70,8 +75,8 @@ type BigRedButtonData struct {
 //
 // Based on the channel example:
 // https://cloud.google.com/appengine/docs/go/channel/
-func brb(w http.ResponseWriter, request *http.Request) {
-	context := appengine.NewContext(request)
+func brb(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
 	key := r.FormValue("key")
 	id := r.FormValue("id")
 	if key == "" {
@@ -90,10 +95,12 @@ func brb(w http.ResponseWriter, request *http.Request) {
 		brb := new(BigRedButton)
 		_ = datastore.Get(c, k, brb)
 		// Ignore the error.
-
+		if brb.Done {
+			running = "false"
+		}
 		found := false
-		for i := range brb.Listener {
-			if listener[i] == id {
+		for _, lid := range brb.Listener {
+			if lid == id {
 				found = true
 			}
 		}
@@ -119,9 +126,10 @@ func brb(w http.ResponseWriter, request *http.Request) {
 	}
 
 	err = brbTemplate.Execute(w, map[string]string{
-		"token": tok,
-		"id":    id,
-		"key":   key,
+		"token":   tok,
+		"id":      id,
+		"key":     key,
+		"running": running,
 	})
 	if err != nil {
 		c.Errorf("brbTemplate: %v", err)
@@ -143,18 +151,18 @@ func brbTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 
 	brb := new(BigRedButton)
-	err = datastore.RunInTransaction(c, func(c appengine.Context) error {
+	err := datastore.RunInTransaction(c, func(c appengine.Context) error {
 		k := datastore.NewKey(c, "BigRedButton", key, 0, nil)
-		if err := datastore.Get(c, k, g); err != nil {
+		if err := datastore.Get(c, k, brb); err != nil {
 			return err
 		}
-		if brb.Stop {
-			return errors.New("Already stopped")
+		if brb.Done {
+			return errors.New("Already done")
 		}
-		brb.Stop = true
+		brb.Done = true
 
 		// Update the Datastore.
-		_, err := datastore.Put(c, k, g)
+		_, err := datastore.Put(c, k, brb)
 		return err
 	}, nil)
 	if err != nil {
