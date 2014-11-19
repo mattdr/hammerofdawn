@@ -3,12 +3,15 @@ package app
 import (
 	"appengine"
 	"appengine/channel"
+	"appengine/datastore"
 	"appengine/urlfetch"
-	"code.google.com/p/goauth2/oauth"
-	"code.google.com/p/google-api-go-client/compute/v1"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
+
+	"code.google.com/p/goauth2/oauth"
+	"code.google.com/p/google-api-go-client/compute/v1"
 )
 
 func root(responseWriter http.ResponseWriter, request *http.Request) {
@@ -30,6 +33,7 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	computeApi, err := compute.New(transport.Client())
 	if err != nil {
 		http.Error(responseWriter, "Couldn't activate Compute API", 500)
+		return
 	}
 
 	project := "g-hammerofdawn"
@@ -37,6 +41,7 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	list, err := computeApi.Instances.List(project, zone).Do()
 	if err != nil {
 		http.Error(responseWriter, "Couldn't retrieve instances", 500)
+		return
 	}
 
 	for _, instance := range list.Items {
