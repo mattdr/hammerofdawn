@@ -1,3 +1,6 @@
+#
+# Simple dockerfile for building curl-loader
+#
 FROM ubuntu:14.04
 
 MAINTAINER Laramie Leavitt <laramie.leavitt@gmail.com>
