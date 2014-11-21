@@ -2,25 +2,26 @@ package app
 
 import (
 	"appengine"
-	"appengine/channel"
+	// "appengine/channel"
 	"appengine/datastore"
 	"appengine/urlfetch"
-	"errors"
 	"fmt"
-	"html/template"
+	// "html/template"
+	"io"
 	"net/http"
+	"strings"
 
 	"code.google.com/p/goauth2/oauth"
 	"code.google.com/p/google-api-go-client/compute/v1"
 )
 
-func root(responseWriter http.ResponseWriter, request *http.Request) {
+func createComputeApi(request *http.Request) (service *compute.Service, err error) {
 	context := appengine.NewContext(request)
 	accessToken, expiryTime, err := appengine.AccessToken(context, compute.ComputeScope)
 	var _ = accessToken
 	var _ = expiryTime
 	if err != nil {
-		http.Error(responseWriter, "Couldn't get access token", 500)
+		return nil, err
 	}
 
 	// https://code.google.com/p/google-api-go-client/wiki/GettingStarted
@@ -32,8 +33,16 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	// https://code.google.com/p/google-api-go-client/source/browse/compute/v1/compute-gen.go
 	computeApi, err := compute.New(transport.Client())
 	if err != nil {
-		http.Error(responseWriter, "Couldn't activate Compute API", 500)
-		return
+		return nil, err
+	}
+
+	return computeApi, nil
+}
+
+func root(responseWriter http.ResponseWriter, request *http.Request) {
+	computeApi, err := createComputeApi(request)
+	if err != nil {
+		http.Error(responseWriter, "Couldn't use Compute API", 500)
 	}
 
 	project := "g-hammerofdawn"
@@ -52,9 +61,7 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	fmt.Fprintf(responseWriter, "Complete")
 }
 
-func init() {
-	http.HandleFunc("/", root)
-	http.HandleFunc("config", config)
+func startsomevms(responseWriter http.ResponseWriter, request *http.Request) {
 }
 
 /*
@@ -119,7 +126,7 @@ func (c *CurlURL) write(w io.Writer) {
 	fmt.Fprintf(w, "URL=%s\n", c.URL)
 	fmt.Fprintf(w, "URL_SHORT_NAME=%s\n", c.URLShortName)
 	fmt.Fprintf(w, "REQUEST_TYPE=%s\n", c.RequestType)
-	if len(c.Header) {
+	if len(c.Header) > 0 {
 		for _, v := range c.Header {
 			fmt.Fprintf(w, "HEADER=%q", v)
 		}
@@ -136,17 +143,23 @@ func (c *CurlURL) write(w io.Writer) {
 
 func config(w http.ResponseWriter, request *http.Request) {
 	context := appengine.NewContext(request)
-	key := r.FormValue("key")
+	key := request.FormValue("key")
 	if key == "" {
 		http.Error(w, "No KEY specified", http.StatusInternalServerError)
 		return
 	}
-	k := datastore.NewKey(c, "LoadConfig", key, 0, nil)
+	k := datastore.NewKey(context, "LoadConfig", key, 0, nil)
 	config := new(Config)
-	err := datastore.Get(c, k, config)
+	err := datastore.Get(context, k, config)
 	if err != nil {
 		http.Error(w, "Read failed", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+}
+
+func init() {
+	http.HandleFunc("/", root)
+	http.HandleFunc("/startsomevms", startsomevms)
+	http.HandleFunc("config", config)
 }
