@@ -15,6 +15,10 @@ import (
 	"code.google.com/p/google-api-go-client/compute/v1"
 )
 
+var (
+	PROJECT string = "g-hammerofdawn"
+)
+
 func createComputeApi(request *http.Request) (service *compute.Service, err error) {
 	context := appengine.NewContext(request)
 	accessToken, expiryTime, err := appengine.AccessToken(context, compute.ComputeScope)
@@ -43,6 +47,7 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	computeApi, err := createComputeApi(request)
 	if err != nil {
 		http.Error(responseWriter, "Couldn't use Compute API", 500)
+		return
 	}
 
 	project := "g-hammerofdawn"
@@ -61,7 +66,60 @@ func root(responseWriter http.ResponseWriter, request *http.Request) {
 	fmt.Fprintf(responseWriter, "Complete")
 }
 
-func startsomevms(responseWriter http.ResponseWriter, request *http.Request) {
+func startonevm(responseWriter http.ResponseWriter, request *http.Request) {
+	projectPrefix := fmt.Sprintf("https://www.googleapis.com/compute/v1/projects/%v", PROJECT)
+	zone := "us-central1-b"
+	pdStandardDiskType := fmt.Sprintf("%v/zones/%v/diskTypes/pd-standard", projectPrefix, zone)
+	n1Standard1MachineType := fmt.Sprintf("%v/zones/%v/machineTypes/n1-standard-1", projectPrefix, zone)
+	defaultNetwork := fmt.Sprintf("%v/global/networks/default", projectPrefix)
+
+	instance := &compute.Instance{
+		Description: "test9df",
+		Disks: []*compute.AttachedDisk{
+			{
+				AutoDelete: true,
+				Boot:       true,
+				// DeviceName (use default)
+				InitializeParams: &compute.AttachedDiskInitializeParams{
+					// DiskName (use default)
+					DiskSizeGb: 30,
+					DiskType:   pdStandardDiskType,
+					// Unlike gcloud, the API doesn't do alias matching. :(
+					SourceImage: "https://www.googleapis.com/compute/v1/projects/debian-cloud/global/images/backports-debian-7-wheezy-v20141108",
+				},
+				Type: "PERSISTENT",
+			},
+		},
+		MachineType: n1Standard1MachineType,
+		// Metadata
+		Name: "test7c8",
+		NetworkInterfaces: []*compute.NetworkInterface{
+			{
+				AccessConfigs: []*compute.AccessConfig{
+					{
+						Name: "test42f",
+						Type: "ONE_TO_ONE_NAT",
+					},
+				},
+				Network: defaultNetwork,
+			},
+		},
+		// ServiceAccounts
+		// Tags
+	}
+
+	computeApi, err := createComputeApi(request)
+	if err != nil {
+		http.Error(responseWriter, "Couldn't use Compute API", 500)
+		return
+	}
+
+	op, err := computeApi.Instances.Insert(PROJECT, zone, instance).Do()
+	if err != nil {
+		http.Error(responseWriter, fmt.Sprintf("Couldn't insert instance: %v", err), 500)
+		return
+	}
+	fmt.Fprint(responseWriter, op)
 }
 
 /*
@@ -160,6 +218,6 @@ func config(w http.ResponseWriter, request *http.Request) {
 
 func init() {
 	http.HandleFunc("/", root)
-	http.HandleFunc("/startsomevms", startsomevms)
+	http.HandleFunc("/startonevm", startonevm)
 	http.HandleFunc("config", config)
 }
