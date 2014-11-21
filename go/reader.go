@@ -41,7 +41,8 @@ func main() {
 		panic(err)
 	}
 	f.Write(body)
-	f.Close()
+	fmt.Printf("file: %s\n", f.Name())
+	defer f.Close()
 
 	cmd := exec.Command(Binary, f.Name())
 	err = cmd.Run()
