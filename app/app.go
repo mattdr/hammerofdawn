@@ -218,6 +218,6 @@ func config(w http.ResponseWriter, request *http.Request) {
 
 func init() {
 	http.HandleFunc("/", root)
-	http.HandleFunc("/startonevm", startonevm)
+	// http.HandleFunc("/startonevm", startonevm)
 	http.HandleFunc("config", config)
 }
